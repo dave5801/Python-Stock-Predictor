@@ -1,65 +1,76 @@
 from flask import Flask, render_template, request
 import yfinance as yf
 import pandas as pd
-import os
+import numpy as np
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
+from sklearn.preprocessing import MinMaxScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense
+import os
 
 app = Flask(__name__)
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    plot_filename = None
-    ticker = None
-    error = None
-
     if request.method == 'POST':
         ticker = request.form['ticker'].upper()
-
         try:
-            # Fetch stock data
-            df = yf.download(ticker, start="2020-01-01", end="2024-12-31")
-            if df.empty:
-                raise ValueError("No data returned.")
+            df = yf.download(ticker, start='2015-01-01', end='2024-12-31')
+            data = df[['Close']]
 
-            df = df[['Close']]
-            df['Next_Close'] = df['Close'].shift(-1)
-            df = df.dropna()
+            # Scale data
+            scaler = MinMaxScaler()
+            scaled_data = scaler.fit_transform(data)
 
-            X = df[['Close']]
-            y = df['Next_Close']
+            # Create sequences
+            sequence_length = 60
+            X, y = [], []
+            for i in range(sequence_length, len(scaled_data)):
+                X.append(scaled_data[i-sequence_length:i])
+                y.append(scaled_data[i])
+            X, y = np.array(X), np.array(y)
 
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+            # Split
+            split = int(0.8 * len(X))
+            X_train, y_train = X[:split], y[:split]
+            X_test, y_test = X[split:], y[split:]
 
-            model = LinearRegression()
-            model.fit(X_train, y_train)
+            # Build LSTM model
+            model = Sequential([
+                LSTM(50, return_sequences=False, input_shape=(X_train.shape[1], 1)),
+                Dense(1)
+            ])
+            model.compile(optimizer='adam', loss='mean_squared_error')
+            model.fit(X_train, y_train, epochs=5, batch_size=32, verbose=0)
 
+            # Predict
             predictions = model.predict(X_test)
+            predictions = scaler.inverse_transform(predictions)
+            actual = scaler.inverse_transform(y_test.reshape(-1, 1))
 
-            # Plot predictions
-            plt.figure(figsize=(8, 5))
-            plt.plot(y_test.values, label='Actual')
+            # Plot results
+            plt.figure(figsize=(10, 5))
+            plt.plot(actual, label='Actual')
             plt.plot(predictions, label='Predicted')
-            plt.title(f"{ticker} Stock Price Prediction")
-            plt.xlabel("Days")
-            plt.ylabel("Price")
+            plt.title(f'{ticker} Stock Price Prediction')
+            plt.xlabel('Time')
+            plt.ylabel('Price')
             plt.legend()
             plt.tight_layout()
 
-            # Save plot in /static
-            plot_filename = 'plot.png'
-            plot_path = os.path.join('static', plot_filename)
+            plot_path = os.path.join('static', 'prediction.png')
             plt.savefig(plot_path)
             plt.close()
 
-        except Exception as e:
-            error = f"Could not retrieve or process data for {ticker}. Error: {e}"
+            return render_template('index.html', ticker=ticker, image=plot_path)
 
-    return render_template('index.html', plot_path=plot_filename, ticker=ticker, error=error)
+        except Exception as e:
+            return render_template('index.html', error=str(e))
+
+    return render_template('index.html')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0')
+
