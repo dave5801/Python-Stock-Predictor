@@ -9,6 +9,7 @@ from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense
 import os
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -17,7 +18,7 @@ def index():
     if request.method == 'POST':
         ticker = request.form['ticker'].upper()
         try:
-            df = yf.download(ticker, start='2015-01-01', end='2024-12-31')
+            df = yf.download(ticker, start='2015-01-01', end=datetime.now().strftime('%Y-%m-%d'))
             data = df[['Close']]
 
             # Scale data

@@ -56,3 +56,26 @@ img {
     color: red;
     margin-top: 15px;
 }
+
+@media (prefers-color-scheme: dark) {
+    body {
+        background: #f4f6f8;
+        color: #333;
+    }
+    
+    .container {
+        background: white;
+        box-shadow: 0px 0px 20px rgba(0,0,0,0.1);
+    }
+    
+    input[type="text"] {
+        background: #3d3d3d;
+        border-color: #4d4d4d;
+        color: #ffffff;
+    }
+    
+    .error {
+        background-color: #3d1a1a;
+        border-color: #4d2a2a;
+    }
+}
