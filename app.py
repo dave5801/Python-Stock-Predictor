@@ -53,12 +53,14 @@ def index():
 
             # Plot results
             plt.figure(figsize=(10, 5))
-            plt.plot(actual, label='Actual')
-            plt.plot(predictions, label='Predicted')
+            dates = df.index[-len(actual):]  # Get the dates corresponding to test data
+            plt.plot(dates, actual, label='Actual')
+            plt.plot(dates, predictions, label='Predicted')
             plt.title(f'{ticker} Stock Price Prediction')
-            plt.xlabel('Time')
-            plt.ylabel('Price')
+            plt.xlabel('Date')
+            plt.ylabel('Price ($)')
             plt.legend()
+            plt.xticks(rotation=45)  # Rotate date labels for better readability
             plt.tight_layout()
 
             plot_path = os.path.join('static', 'prediction.png')
